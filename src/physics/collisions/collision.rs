@@ -1,9 +1,9 @@
 use crate::physics::collisions::collider::Collider;
 
-struct WorldCollider<'a> {
-    collider: &'a dyn Collider,
-    position: glm::Vec3,
-    rotation: glm::Quat,
+pub struct WorldCollider<'a> {
+    pub collider: &'a dyn Collider,
+    pub position: glm::Vec3,
+    pub rotation: glm::Quat,
 }
 
 impl<'a> WorldCollider<'a> {
@@ -94,104 +94,5 @@ impl<'a> WorldCollider<'a> {
         // Reference:
         // https://en.wikipedia.org/wiki/Rigid_transformation
         self.position + glm::quat_rotate_vec3(&self.rotation, &local_support)
-    }
-}
-
-struct Contact {
-    // world-space contact position
-    point: glm::Vec3,
-
-    // Unit-length collision normal
-    //
-    // ||n|| = 1
-    //
-    // Its orientation depends on the collision convention
-    // such as pointing from collider A toward collider B
-    normal: glm::Vec3,
-
-    // penetration depth between collider
-    //
-    // depth >= 0
-    //
-    // Used during collision resolution to separate
-    // interesting bodies
-    depth: f32,
-}
-
-struct Vertex {
-    // p = p_A - p_B
-    //
-    // Support point in the minkowski difference
-    minkowski_different_point: glm::Vec3,
-
-    // Original world-space support point on collider A
-    single_point_shape_a: glm::Vec3,
-
-    // Original world-space support point on collider B
-    single_point_shape_b: glm::Vec3,
-}
-
-/// Returns a support vertex of the minkowski difference A - B
-///
-/// minkowski difference:
-///
-/// A - B = { a - b | a ∈ A, b ∈ B }
-///
-/// Support mapping:
-///
-/// S_(A-B)(d) = S_A(d) - S_B(d)
-///
-/// Reference:
-/// https://en.wikipedia.org/wiki/Minkowski_addition
-/// https://en.wikipedia.org/wiki/Gilbert%E2%80%93Johnson%E2%80%93Keerthi_distance_algorithm
-fn minkowski(
-    collider_a: &WorldCollider<'_>,
-    collider_b: &WorldCollider<'_>,
-    search_direction: glm::Vec3,
-) -> Vertex {
-    // p_A = S_A(d)
-    //
-    // Find the furthest point of the collider A along
-    // the search_direction
-    let point_a = collider_a.support(&search_direction);
-
-    // p_B = S_B(-d)
-    //
-    // Find the furthest point of the collider B along
-    // the opposite search_direction
-    //
-    // This is equivalent to finding the point of B
-    // with the smallest projection along d
-    let point_b = collider_b.support(&-search_direction);
-
-    // p = p_A - p_B
-    //
-    // Calculate the support point of the minkowski difference
-    //
-    // Mathematical derivation
-    //
-    // max((a-b) · d)
-    //     = max(a · d - b · d)
-    //     = max(a · d) + max(b · (-d))
-    //
-    // Therefore
-    //
-    // S_(A-B)(d) = S_A(d) - S_B(-d)
-    //
-    // GJK uses this point to constrct a simplex and
-    // determine whether the minkowski difference contains
-    // the origin
-    //
-    // A ∩ B ≠ ∅  ⇔  0 ∈ (A - B)
-    //
-    // The original support points are preserved so EPA
-    // can later reconstruct world-space contact positions
-    //
-    // Reference:
-    // https://en.wikipedia.org/wiki/Gilbert%E2%80%93Johnson%E2%80%93Keerthi_distance_algorithm
-    Vertex {
-        minkowski_different_point: point_a - point_b,
-        single_point_shape_a: point_a,
-        single_point_shape_b: point_b,
     }
 }

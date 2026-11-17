@@ -18,7 +18,7 @@ pub trait Collider {
     fn bounding_radius(&self) -> f32;
 }
 
-struct SphereCollider {
+pub struct SphereCollider {
     radius: f32,
 }
 

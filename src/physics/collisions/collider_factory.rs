@@ -1,15 +1,15 @@
 use crate::{
-    physics::collisions::collider::{BoxCollider, Collider, ConvexHullCollider},
+    physics::collisions::collider::{BoxCollider, Collider, ConvexHullCollider, SphereCollider},
     scene::shape::{Shape, ShapeType},
 };
 
 const CUBE_MESH_HALF_EXTENT: f32 = 1.0;
 const FLAT_HALF_THICKNESS: f32 = 0.05;
 
-struct ColliderPart {
-    collider: Box<dyn Collider>,
-    local_position: glm::Vec3,
-    local_rotation: glm::Quat,
+pub struct ColliderPart {
+    pub collider: Box<dyn Collider>,
+    pub local_position: glm::Vec3,
+    pub local_rotation: glm::Quat,
 }
 
 impl ColliderPart {
@@ -35,15 +35,8 @@ impl ColliderPart {
 }
 
 pub fn extract_vertex_points(shape: &Shape) -> Vec<glm::Vec3> {
-    let data = shape.mesh.vertex_data();
-    let count = shape.mesh.vertex_count();
-    if data.is_empty() || count == 0 {
-        return Vec::new();
-    }
-
     // Copy the mesh's local-space vertex positions
-    let mut points: Vec<glm::Vec3> = vec![];
-    data[..count].to_vec();
+    let mut points = shape.mesh.vertices.clone();
 
     // Lexicographical ordering
     //
@@ -131,6 +124,11 @@ pub fn make_collider_parts(shape: &Shape) -> Vec<ColliderPart> {
     let scale = shape.transform.scale;
 
     match shape.shape_type {
+        ShapeType::Circle => {
+            let radius = scale.x.abs().max(scale.y.abs()).max(scale.z.abs());
+
+            vec![ColliderPart::new(SphereCollider::new(radius))]
+        }
         ShapeType::Cube => {
             // h = h_mesh * |s|
             //
