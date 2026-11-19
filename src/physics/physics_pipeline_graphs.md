@@ -107,7 +107,7 @@ sequenceDiagram
     participant Solver as Contact solver
     Caller->>World: step(dt)
     World->>Bodies: integrate_velocities(dt)
-    Note over Bodies: v += [g + (F + F_drag)/m] dt
+    Note over Bodies: Apply gravity, external forces, and aerodynamic drag
     World->>World: find_body_contacts(out)
     loop each body pair and collider-part pair
         World->>World: to_world(body, part)
@@ -127,7 +127,7 @@ sequenceDiagram
         end
     end
     World->>Bodies: integrate_positions(dt)
-    Note over Bodies: damping; x += v dt; normalize updated q
+    Note over Bodies: Apply damping, update position, and normalize orientation
     World-->>Caller: return
 ```
 

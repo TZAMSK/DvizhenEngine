@@ -76,7 +76,7 @@ PhysicsWorld::step(dt)
 **Support mapping:**
 
 $$
-S_C(\mathbf d)=\underset{\mathbf p\in C}{\operatorname{argmax}}\;(\mathbf p\cdot\mathbf d)
+S_C(\mathbf d)=\underset{\mathbf p\in C}{\\mathrm{argmax}}\;(\mathbf p\cdot\mathbf d)
 $$
 
 It returns the point with the greatest projection along direction $\mathbf d$. The returned point is in the collider's **local space**.
@@ -104,7 +104,7 @@ $$
 For half-extents $(h_x,h_y,h_z)$, choose the corner whose coordinates have the signs of the search direction:
 
 $$
-S(\mathbf d)=\begin{pmatrix}h_x\operatorname{sgn}(d_x)\\h_y\operatorname{sgn}(d_y)\\h_z\operatorname{sgn}(d_z)\end{pmatrix}
+S(\mathbf d)=\begin{pmatrix}h_x\\mathrm{sgn}(d_x)\\h_y\\mathrm{sgn}(d_y)\\h_z\\mathrm{sgn}(d_z)\end{pmatrix}
 $$
 
 In this code, a zero direction component chooses the **positive** half-extent.
@@ -132,7 +132,7 @@ $$
 `support(direction)` scans all points, choosing the vertex with the largest dot product:
 
 $$
-S(\mathbf d)=\underset{i}{\operatorname{argmax}}\;(\mathbf p_i\cdot\mathbf d)
+S(\mathbf d)=\underset{i}{\\mathrm{argmax}}\;(\mathbf p_i\cdot\mathbf d)
 $$
 
 **Cost:** $O(V)$ for $V$ input vertices. It does not require an explicit hull-face mesh.
@@ -188,7 +188,7 @@ The factory branches on `shape.shape_type`:
 **Nonuniform scaling of mesh points:**
 
 $$
-\mathbf p'=\operatorname{diag}(s_x,s_y,s_z)\mathbf p
+\mathbf p'=\\mathrm{diag}(s_x,s_y,s_z)\mathbf p
 $$
 
 **Important:** This code bakes `scale` into collider geometry. The body transform should not apply the same scale again.
@@ -479,7 +479,7 @@ $$
 Then:
 
 $$
-I_{body}^{-1}=\operatorname{inverse}(I_{body})
+I_{body}^{-1}=\\mathrm{inverse}(I_{body})
 $$
 
 The current code uses `try_inverse().unwrap_or_else(glm::Mat3::zeros)` to avoid a failed matrix inversion.
@@ -798,7 +798,7 @@ $$
 Explicit quaternion integration:
 
 $$
-\boxed{q_{new}=\operatorname{normalize}\left(q_{old}+\frac{\Delta t}{2}\Omega q_{old}\right)}
+\boxed{q_{new}=\\mathrm{normalize}\left(q_{old}+\frac{\Delta t}{2}\Omega q_{old}\right)}
 $$
 
 Normalization prevents floating-point drift from breaking the unit-quaternion constraint.
