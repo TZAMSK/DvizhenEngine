@@ -2,7 +2,7 @@
 
 This companion to `physics_pipeline.md` visualizes the **actual code architecture**, **function calls**, **data flow**, and **mathematics** in the Rust rigid-body engine. The diagrams use [Mermaid](https://mermaid.js.org/), which renders in compatible Markdown viewers (including GitHub).
 
-> Names match the shared implementation (`collider_factory`, `collision`, `orentation`, `intertia`). A diagram arrow means *data flow* or *a function call*, as indicated in each section; it does not imply that every stage happens automatically.
+> File names follow the proposed module layout (`collider_builder.rs`, `world_collider.rs`, `convex_collision.rs`); identifiers such as `orentation` and `intertia` retain their current spelling. A diagram arrow means *data flow* or *a function call*, as indicated in each section; it does not imply that every stage happens automatically.
 
 ## 1. Full pipeline — geometry to simulation
 
@@ -324,11 +324,11 @@ The quaternion multiplication order `Ωq` assumes **world-space angular velocity
 | Stage | Structs / functions | Current source |
 |---|---|---|
 | Geometry | `Collider`, `SphereCollider`, `BoxCollider`, `ConvexHullCollider` | `collider.rs` |
-| Collider creation | `ColliderPart`, `extract_vertex_points`, `thicken_if_flat`, `make_collider_parts` | `collider_factory.rs` |
-| World-space support | `WorldCollider::support` | `collision.rs` |
-| GJK | `minkowski`, `Simplex`, `line_case`, `triangle_case`, `tetrahedron_case`, `gjk` | `collisions/mod.rs` |
-| EPA | `Face`, `make_face`, `make_contact`, `find_closest_face`, `epa` | `collisions/mod.rs` |
-| Contact API | `Contact`, `collide` | `collisions/mod.rs` |
+| Collider creation | `ColliderPart`, `extract_vertex_points`, `thicken_if_flat`, `make_collider_parts` | `collider_builder.rs` |
+| World-space support | `WorldCollider::support` | `world_collider.rs` |
+| GJK | `minkowski`, `Simplex`, `line_case`, `triangle_case`, `tetrahedron_case`, `gjk` | `convex_collision.rs` |
+| EPA | `Face`, `make_face`, `make_contact`, `find_closest_face`, `epa` | `convex_collision.rs` |
+| Contact API | `Contact`, `collide` | `convex_collision.rs` |
 | Mass properties | `RigidBody::compute_mass_properties`, `inv_intertia_world` | `rigid_body.rs` |
 | Simulation | `PhysicsWorld::step`, `integrate_velocities`, `integrate_positions` | `physics_world.rs` |
 | Contact generation | `find_body_contacts`, `find_ground_contacts`, `to_world` | `physics_world.rs` |

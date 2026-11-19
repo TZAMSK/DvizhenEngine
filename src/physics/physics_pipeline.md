@@ -2,7 +2,7 @@
 
 A code-oriented guide to the **structs, functions, execution order, and mathematics** of the current Rust rigid-body physics implementation.
 
-> **Scope:** This describes the implementation shared in the conversation: `collider.rs`, `collider_factory.rs`, `collision.rs` / `world_collider.rs`, the GJK/EPA collision module, `rigid_body.rs`, and `physics_world.rs`. Some names retain their current spelling (`intertia`, `orentation`, `drag_coefficience`). The GJK/EPA description covers the algorithm and the previously shared implementation; it is not a proof that all edge cases are correct.
+> **Scope:** This describes the implementation shared in the conversation: `collider.rs`, `collider_builder.rs`, `world_collider.rs`, the GJK/EPA collision module, `rigid_body.rs`, and `physics_world.rs`. Some names retain their current spelling (`intertia`, `orentation`, `drag_coefficience`). The GJK/EPA description covers the algorithm and the previously shared implementation; it is not a proof that all edge cases are correct.
 
 ## 1. Architecture at a glance
 
@@ -13,7 +13,7 @@ Scene::Shape
  └── transform.scale
           │
           ▼
-make_collider_parts(shape)         collider_factory.rs
+make_collider_parts(shape)         collider_builder.rs
  ├── SphereCollider                collider.rs
  ├── BoxCollider                   collider.rs
  └── ConvexHullCollider            collider.rs
@@ -75,73 +75,73 @@ PhysicsWorld::step(dt)
 
 **Support mapping:**
 
-\[
+$$
 S_C(\mathbf d)=\underset{\mathbf p\in C}{\operatorname{argmax}}\;(\mathbf p\cdot\mathbf d)
-\]
+$$
 
-It returns the point with the greatest projection along direction \(\mathbf d\). The returned point is in the collider's **local space**.
+It returns the point with the greatest projection along direction $\mathbf d$. The returned point is in the collider's **local space**.
 
 ### `SphereCollider { radius }`
 
 **Support:**
 
-\[
+$$
 S(\mathbf d)=r\frac{\mathbf d}{\|\mathbf d\|},\qquad \|\mathbf d\|>0
-\]
+$$
 
 For nearly zero-length directions, the implementation returns the origin.
 
 **Solid sphere inertia:**
 
-\[
+$$
 I=\frac25 mr^2\mathbf 1_3
-\]
+$$
 
-**Bounding radius:** \(R=r\).
+**Bounding radius:** $R=r$.
 
 ### `BoxCollider { half: Vec3 }`
 
-For half-extents \((h_x,h_y,h_z)\), choose the corner whose coordinates have the signs of the search direction:
+For half-extents $(h_x,h_y,h_z)$, choose the corner whose coordinates have the signs of the search direction:
 
-\[
+$$
 S(\mathbf d)=\begin{pmatrix}h_x\operatorname{sgn}(d_x)\\h_y\operatorname{sgn}(d_y)\\h_z\operatorname{sgn}(d_z)\end{pmatrix}
-\]
+$$
 
 In this code, a zero direction component chooses the **positive** half-extent.
 
 **Solid cuboid inertia:**
 
-\[
+$$
 I=\begin{bmatrix}
 \frac m3(h_y^2+h_z^2)&0&0\\
 0&\frac m3(h_x^2+h_z^2)&0\\
 0&0&\frac m3(h_x^2+h_y^2)
 \end{bmatrix}
-\]
+$$
 
-**Bounding radius:** \(R=\sqrt{h_x^2+h_y^2+h_z^2}\).
+**Bounding radius:** $R=\sqrt{h_x^2+h_y^2+h_z^2}$.
 
 ### `ConvexHullCollider { points, half, radius }`
 
 `new(points)` computes:
 
 1. Componentwise minimum/maximum vertex positions, `lo` and `hi`.
-2. AABB half-extents \(\mathbf h=(\mathbf{hi}-\mathbf{lo})/2\).
-3. Origin-centered radius \(R=\max_i\|\mathbf p_i\|\).
+2. AABB half-extents $\mathbf h=(\mathbf{hi}-\mathbf{lo})/2$.
+3. Origin-centered radius $R=\max_i\|\mathbf p_i\|$.
 
 `support(direction)` scans all points, choosing the vertex with the largest dot product:
 
-\[
+$$
 S(\mathbf d)=\underset{i}{\operatorname{argmax}}\;(\mathbf p_i\cdot\mathbf d)
-\]
+$$
 
-**Cost:** \(O(V)\) for \(V\) input vertices. It does not require an explicit hull-face mesh.
+**Cost:** $O(V)$ for $V$ input vertices. It does not require an explicit hull-face mesh.
 
 `intertia(mass)` **approximates** the convex hull as a solid AABB-sized box. It is not the exact inertia tensor of an arbitrary convex polyhedron.
 
 ---
 
-## 3. Collider creation — `collider_factory.rs`
+## 3. Collider creation — `collider_builder.rs`
 
 ### `struct ColliderPart`
 
@@ -157,23 +157,23 @@ This represents **one collision shape attached to a rigid body**. `Box<dyn Colli
 
 ### `extract_vertex_points(shape)`
 
-Copies `shape.mesh.vertices`, lexicographically sorts `(x,y,z)`, and removes adjacent duplicates. Duplicate triangle vertices do not help support mapping. Sorting costs \(O(V\log V)\).
+Copies `shape.mesh.vertices`, lexicographically sorts `(x,y,z)`, and removes adjacent duplicates. Duplicate triangle vertices do not help support mapping. Sorting costs $O(V\log V)$.
 
 ### `thicken_if_flat(points)`
 
 Measures the Z extent:
 
-\[
+$$
 \Delta z=z_{\max}-z_{\min}
-\]
+$$
 
-If \(\Delta z\le10^{-4}\), each vertex \((x,y,z)\) is duplicated as:
+If $\Delta z\le10^{-4}$, each vertex $(x,y,z)$ is duplicated as:
 
-\[
+$$
 \mathbf p_+=(x,y,z+h),\quad\mathbf p_-=(x,y,z-h),\quad h=0.05
-\]
+$$
 
-This gives an originally planar XY-oriented shape a nominal thickness of \(0.1\) world/mesh units along local Z, reducing zero-volume degeneracy in 3D GJK/EPA. It does **not** thicken a planar mesh whose plane is tilted relative to local XY.
+This gives an originally planar XY-oriented shape a nominal thickness of $0.1$ world/mesh units along local Z, reducing zero-volume degeneracy in 3D GJK/EPA. It does **not** thicken a planar mesh whose plane is tilted relative to local XY.
 
 ### `make_collider_parts(shape)`
 
@@ -181,21 +181,21 @@ The factory branches on `shape.shape_type`:
 
 | Shape type | Result | Mathematics / assumption |
 |---|---|---|
-| `Circle` | `SphereCollider` | \(r=\max(|s_x|,|s_y|,|s_z|)\); approximates a circle as a 3D sphere |
-| `Cube` | `BoxCollider` | \(\mathbf h=|\mathbf s|h_{mesh}\), with \(h_{mesh}=1\) |
+| `Circle` | `SphereCollider` | $r=\max(|s_x|,|s_y|,|s_z|)$; approximates a circle as a 3D sphere |
+| `Cube` | `BoxCollider` | $\mathbf h=|\mathbf s|h_{mesh}$, with $h_{mesh}=1$ |
 | Other types | `ConvexHullCollider` | Scale each vertex, optionally thicken, use all vertices as support candidates |
 
 **Nonuniform scaling of mesh points:**
 
-\[
+$$
 \mathbf p'=\operatorname{diag}(s_x,s_y,s_z)\mathbf p
-\]
+$$
 
 **Important:** This code bakes `scale` into collider geometry. The body transform should not apply the same scale again.
 
 ---
 
-## 4. Local-to-world support — `collision.rs` / `world_collider.rs`
+## 4. Local-to-world support — `world_collider.rs`
 
 ### `struct WorldCollider<'a>`
 
@@ -218,49 +218,49 @@ The local collider understands only local-space directions. To query it in world
 3. Rotate the resulting point back into world space.
 4. Add world translation.
 
-\[
+$$
 \boxed{S_{world}(\mathbf d)=\mathbf t+R\,S_{local}(R^T\mathbf d)}
-\]
+$$
 
-For unit quaternions, \(R^{-1}=R^T\). Quaternion vector rotation is conceptually \(q(0,\mathbf v)q^{-1}\).
+For unit quaternions, $R^{-1}=R^T$. Quaternion vector rotation is conceptually $q(0,\mathbf v)q^{-1}$.
 
 ### `to_world(body, part)` in `physics_world.rs`
 
 Builds a `WorldCollider` from the body's transform and a collider part's local transform:
 
-\[
+$$
 \mathbf t_{world}=\mathbf x_{body}+R_{body}\mathbf t_{part}
-\]
+$$
 
-\[
+$$
 q_{world}=q_{body}q_{part}
-\]
+$$
 
 This is why `ColliderPart.local_position` matters for compound rigid bodies: its offset rotates with the parent body.
 
 ---
 
-## 5. GJK collision detection — `collisions/mod.rs` / `convex_collision.rs`
+## 5. GJK collision detection — `convex_collision.rs`
 
 **Purpose:** Determine whether two convex sets intersect, using only support functions.
 
 ### Minkowski difference
 
-\[
+$$
 A-B=\{\mathbf a-\mathbf b\mid\mathbf a\in A,\mathbf b\in B\}
-\]
+$$
 
 The two shapes intersect if and only if the origin belongs to their Minkowski difference:
 
-\[
+$$
 A\cap B\ne\varnothing\iff\mathbf0\in A-B
-\]
+$$
 
 **Minkowski support:**
 
-\[
+$$
 S_{A-B}(\mathbf d)=S_A(\mathbf d)-S_B(-\mathbf d)
-\]
+$$
 
 The implementation's `minkowski(a,b,d)` also stores the individual witness points on A and B, not just their difference. Those witnesses are needed later by EPA to reconstruct a contact point.
 
@@ -268,9 +268,9 @@ The implementation's `minkowski(a,b,d)` also stores the individual witness point
 
 A support vertex stores:
 
-- `minkowski_different_point`: \(\mathbf w=\mathbf a-\mathbf b\).
-- `single_point_shape_a`: witness \(\mathbf a\).
-- `single_point_shape_b`: witness \(\mathbf b\).
+- `minkowski_different_point`: $\mathbf w=\mathbf a-\mathbf b$.
+- `single_point_shape_a`: witness $\mathbf a$.
+- `single_point_shape_b`: witness $\mathbf b$.
 
 ### `Simplex`
 
@@ -293,47 +293,47 @@ A simplex is the current set of support vertices being tested against the origin
 
 The separating-direction test is based on:
 
-\[
+$$
 S_{A-B}(\mathbf d)\cdot\mathbf d\le0
-\]
+$$
 
 When this holds in the tested direction, the support point does not pass the origin-facing plane, so the origin cannot be enclosed by the convex Minkowski difference along that direction.
 
 ### `line_case`
 
-For simplex vertices \(A,B\):
+For simplex vertices $A,B$:
 
-\[
+$$
 \mathbf{AB}=B-A,\qquad\mathbf{AO}=-A
-\]
+$$
 
 When the origin lies in the direction of segment AB, a new search direction perpendicular to AB and toward the origin can be formed using a vector triple product:
 
-\[
+$$
 \boxed{\mathbf d=(\mathbf{AB}\times\mathbf{AO})\times\mathbf{AB}}
-\]
+$$
 
 By the triple-product identity:
 
-\[
+$$
 (\mathbf a\times\mathbf b)\times\mathbf a=\|\mathbf a\|^2\mathbf b-(\mathbf a\cdot\mathbf b)\mathbf a
-\]
+$$
 
-If the origin is not in the segment's forward region, discard B and search toward \(-A\).
+If the origin is not in the segment's forward region, discard B and search toward $-A$.
 
 ### `triangle_case`
 
-For triangle \(A,B,C\):
+For triangle $A,B,C$:
 
-\[
+$$
 \mathbf{AB}=B-A,\quad\mathbf{AC}=C-A,\quad\mathbf n=\mathbf{AB}\times\mathbf{AC}
-\]
+$$
 
-The function checks whether the origin lies beyond the triangle's edges or above/below its plane. It either reduces the simplex to an edge or retains the triangle and chooses a search direction parallel to \(\pm\mathbf n\).
+The function checks whether the origin lies beyond the triangle's edges or above/below its plane. It either reduces the simplex to an edge or retains the triangle and chooses a search direction parallel to $\pm\mathbf n$.
 
 ### `tetrahedron_case`
 
-For \(A,B,C,D\), test whether the origin lies outside any tetrahedron face. If outside a face, reduce the simplex to that face and continue. If inside all four consistently oriented face half-spaces, the simplex encloses the origin and GJK succeeds.
+For $A,B,C,D$, test whether the origin lies outside any tetrahedron face. If outside a face, reduce the simplex to that face and continue. If inside all four consistently oriented face half-spaces, the simplex encloses the origin and GJK succeeds.
 
 **Implementation caveat:** Tetrahedron face normals must be oriented relative to their **opposite vertices**. The earlier implementation's normal-orientation logic deserves verification with unit tests; incorrect winding can produce false collision results.
 
@@ -348,60 +348,60 @@ For \(A,B,C,D\), test whether the origin lies outside any tetrahedron face. If o
 Each EPA polytope face contains:
 
 - Three indices into the support-vertex array.
-- An outward unit normal \(\mathbf n\).
-- Its signed distance \(d\) from the origin.
+- An outward unit normal $\mathbf n$.
+- Its signed distance $d$ from the origin.
 
-For triangle vertices \(A,B,C\):
+For triangle vertices $A,B,C$:
 
-\[
+$$
 \mathbf n=\frac{(B-A)\times(C-A)}{\|(B-A)\times(C-A)\|}
-\]
+$$
 
-\[
+$$
 d=\mathbf n\cdot A
-\]
+$$
 
 The implementation flips the normal/winding if needed to make the face distance nonnegative.
 
 ### EPA expansion loop
 
 1. Build a tetrahedral polytope from GJK's simplex.
-2. Find the face closest to the origin (minimum \(d\)).
+2. Find the face closest to the origin (minimum $d$).
 3. Query Minkowski support along that face's outward normal.
-4. Compare the support distance \(d_{new}\) with the face distance \(d_{face}\).
-5. If the difference is below tolerance (previous implementation: \(10^{-3}\)), treat the face as converged.
+4. Compare the support distance $d_{new}$ with the face distance $d_{face}$.
+5. If the difference is below tolerance (previous implementation: $10^{-3}$), treat the face as converged.
 6. Otherwise, remove faces visible from the new support point, determine the horizon boundary, and connect the new point to the horizon edges.
 7. Repeat until convergence or the iteration limit.
 
 **Convergence test:**
 
-\[
+$$
 S_{A-B}(\mathbf n)\cdot\mathbf n-d_{face}<\varepsilon
-\]
+$$
 
 The converged face distance estimates penetration depth:
 
-\[
+$$
 \delta\approx d_{face}
-\]
+$$
 
 ### Barycentric contact reconstruction
 
-For the closest face with vertices \(V_0,V_1,V_2\), compute barycentric weights \(\lambda_i\) of the closest point to the origin:
+For the closest face with vertices $V_0,V_1,V_2$, compute barycentric weights $\lambda_i$ of the closest point to the origin:
 
-\[
+$$
 \lambda_0+\lambda_1+\lambda_2=1
-\]
+$$
 
-\[
+$$
 \mathbf p_A=\lambda_0\mathbf a_0+\lambda_1\mathbf a_1+\lambda_2\mathbf a_2
-\]
+$$
 
-\[
+$$
 \mathbf p_B=\lambda_0\mathbf b_0+\lambda_1\mathbf b_1+\lambda_2\mathbf b_2
-\]
+$$
 
-These are corresponding witness points on the original shapes. The previously shared code used the A witness for `Contact.point`; a midpoint \((\mathbf p_A+\mathbf p_B)/2\) is another common approximation for a single solver contact.
+These are corresponding witness points on the original shapes. The previously shared code used the A witness for `Contact.point`; a midpoint $(\mathbf p_A+\mathbf p_B)/2$ is another common approximation for a single solver contact.
 
 ### `Contact`
 
@@ -435,7 +435,7 @@ pub struct Contact {
 | `volume` | Stored volume; not used by shown mass-property calculation | m³ if SI |
 | `drag_coefficience` | Aerodynamic drag coefficient | Dimensionless |
 | `cross_section` | Drag reference area | m² |
-| `inv_mass` | \(1/m\); zero for static bodies | kg⁻¹ |
+| `inv_mass` | $1/m$; zero for static bodies | kg⁻¹ |
 | `restitution` | Normal collision elasticity | Dimensionless |
 | `inv_inertia_local` | Inverse inertia tensor in body-local axes | (kg·m²)⁻¹ |
 | `parts` | Attached collider geometry | `Vec<ColliderPart>` |
@@ -444,43 +444,43 @@ pub struct Contact {
 
 Checks `inv_mass == 0.0`. An immovable body has effectively infinite mass in the impulse equations:
 
-\[
+$$
 m^{-1}=0\implies\Delta\mathbf v=\mathbf Jm^{-1}=\mathbf0
-\]
+$$
 
 ### `RigidBody::compute_mass_properties(mass)`
 
-1. Set inverse mass \(m^{-1}=1/m\) if positive; otherwise zero.
+1. Set inverse mass $m^{-1}=1/m$ if positive; otherwise zero.
 2. If static or without collider parts, leave inverse inertia zero.
-3. Divide mass equally among \(N\) parts: \(m_i=m/N\).
-4. For each part, calculate its local inertia \(I_i\).
+3. Divide mass equally among $N$ parts: $m_i=m/N$.
+4. For each part, calculate its local inertia $I_i$.
 5. Rotate inertia into the body's local axes.
 6. Apply the parallel-axis theorem for its offset.
 7. Sum all part contributions and invert the result.
 
 **Rotated inertia:**
 
-\[
+$$
 I_{rotated,i}=R_i I_iR_i^T
-\]
+$$
 
 **Parallel-axis theorem:**
 
-\[
+$$
 I_{offset,i}=m_i\left[(\mathbf p_i\cdot\mathbf p_i)\mathbf1_3-\mathbf p_i\mathbf p_i^T\right]
-\]
+$$
 
 **Total local inertia:**
 
-\[
+$$
 \boxed{I_{body}=\sum_i\left(R_iI_iR_i^T+m_i[(\mathbf p_i\cdot\mathbf p_i)\mathbf1_3-\mathbf p_i\mathbf p_i^T]\right)}
-\]
+$$
 
 Then:
 
-\[
+$$
 I_{body}^{-1}=\operatorname{inverse}(I_{body})
-\]
+$$
 
 The current code uses `try_inverse().unwrap_or_else(glm::Mat3::zeros)` to avoid a failed matrix inversion.
 
@@ -490,9 +490,9 @@ The current code uses `try_inverse().unwrap_or_else(glm::Mat3::zeros)` to avoid 
 
 Transforms inverse inertia from body coordinates to world coordinates:
 
-\[
+$$
 \boxed{I_{world}^{-1}=R_{body}I_{local}^{-1}R_{body}^T}
-\]
+$$
 
 This is necessary because impulses and contact offsets are expressed in **world coordinates**, while the inertia tensor is stored in **body-local coordinates**.
 
@@ -550,29 +550,29 @@ For each non-static body:
 
 **Speed:**
 
-\[
+$$
 v=\|\mathbf v\|=\sqrt{v_x^2+v_y^2+v_z^2}
-\]
+$$
 
 **Quadratic air drag:**
 
-\[
+$$
 \boxed{\mathbf F_{drag}=-\frac12\rho C_dA\|\mathbf v\|\mathbf v}
-\]
+$$
 
-The code uses \(\rho=1.2\) kg/m³ as an approximate air density.
+The code uses $\rho=1.2$ kg/m³ as an approximate air density.
 
 **Newton's second law:**
 
-\[
+$$
 \mathbf a=\mathbf g+(\mathbf F_{external}+\mathbf F_{drag})m^{-1}
-\]
+$$
 
 **Velocity update:**
 
-\[
+$$
 \boxed{\mathbf v_{new}=\mathbf v_{old}+\mathbf a\Delta t}
-\]
+$$
 
 Finally `force = Vec3::zeros()` so forces must be accumulated again next step.
 
@@ -580,7 +580,7 @@ Finally `force = Vec3::zeros()` so forces must be accumulated again next step.
 
 ### `find_body_contacts(out)`
 
-For each unordered pair of bodies (\(N(N-1)/2\) possible pairs):
+For each unordered pair of bodies ($N(N-1)/2$ possible pairs):
 
 1. Skip pairs where both bodies are static.
 2. Iterate over every `ColliderPart` in each body.
@@ -591,11 +591,11 @@ For each unordered pair of bodies (\(N(N-1)/2\) possible pairs):
 
 **Bounding-sphere rejection:**
 
-\[
+$$
 \|\mathbf c_B-\mathbf c_A\|>R_A+R_B\implies\text{no overlap}
-\]
+$$
 
-Body-pair traversal is \(O(N^2)\) before accounting for the number of collider parts and narrowphase work. This is a simple brute-force broadphase, not a spatial tree/grid.
+Body-pair traversal is $O(N^2)$ before accounting for the number of collider parts and narrowphase work. This is a simple brute-force broadphase, not a spatial tree/grid.
 
 ### `find_ground_contacts(out)`
 
@@ -607,11 +607,11 @@ For each non-static body and collider part:
 
 **Ground condition and penetration:**
 
-\[
+$$
 p_z<z_{ground},\qquad\delta=z_{ground}-p_z
-\]
+$$
 
-The contact normal is \((0,0,-1)\), consistent with the solver's convention because **A is the body and B is the ground**.
+The contact normal is $(0,0,-1)$, consistent with the solver's convention because **A is the body and B is the ground**.
 
 **Caveat:** Multiple support directions may return the **same point**, generating duplicate constraints and excessive correction. This ground check is also a plane-specific collision method, not GJK/EPA against a ground collider.
 
@@ -632,7 +632,7 @@ This is a **sequential impulse** approach: after each contact impulse, the bodie
 
 ## 9. Penetration correction — `correct_penetration`
 
-Let \(\delta\) be penetration depth, \(\mathbf n\) the normal pointing **A→B**, and \(m_A^{-1},m_B^{-1}\) inverse masses.
+Let $\delta$ be penetration depth, $\mathbf n$ the normal pointing **A→B**, and $m_A^{-1},m_B^{-1}$ inverse masses.
 
 The code uses:
 
@@ -641,25 +641,25 @@ The code uses:
 
 **Excess penetration:**
 
-\[
+$$
 \delta'=\max(\delta-\mathrm{SLOP},0)
-\]
+$$
 
 **Mass-weighted correction:**
 
-\[
+$$
 \mathbf C=\mathbf n\frac{\delta'}{m_A^{-1}+m_B^{-1}}\mathrm{PERCENT}
-\]
+$$
 
 **New positions:**
 
-\[
+$$
 \boxed{\mathbf x_A'=\mathbf x_A-m_A^{-1}\mathbf C}
-\]
+$$
 
-\[
+$$
 \boxed{\mathbf x_B'=\mathbf x_B+m_B^{-1}\mathbf C}
-\]
+$$
 
 The lighter body (larger inverse mass) moves farther. If both inverse masses are zero, no correction is performed. This is **positional** correction: it does not directly change velocity.
 
@@ -671,11 +671,11 @@ The lighter body (larger inverse mass) moves farther. If both inverse masses are
 
 ### Step 1 — contact offsets
 
-For contact point \(\mathbf p\):
+For contact point $\mathbf p$:
 
-\[
+$$
 \mathbf r_A=\mathbf p-\mathbf x_A,\qquad\mathbf r_B=\mathbf p-\mathbf x_B
-\]
+$$
 
 These lever arms determine the angular effect of a contact impulse.
 
@@ -683,78 +683,78 @@ These lever arms determine the angular effect of a contact impulse.
 
 A point on a rotating rigid body has velocity:
 
-\[
+$$
 \boxed{\mathbf v_p=\mathbf v_{center}+\boldsymbol\omega\times\mathbf r}
-\]
+$$
 
 Thus:
 
-\[
+$$
 \mathbf v_A^p=\mathbf v_A+\boldsymbol\omega_A\times\mathbf r_A
-\]
+$$
 
-\[
+$$
 \mathbf v_B^p=\mathbf v_B+\boldsymbol\omega_B\times\mathbf r_B
-\]
+$$
 
 ### Step 3 — relative normal velocity
 
-\[
+$$
 \boxed{v_n=(\mathbf v_B^p-\mathbf v_A^p)\cdot\mathbf n}
-\]
+$$
 
 For an **A→B** normal:
 
-- \(v_n<0\): approaching → resolve collision.
-- \(v_n\ge0\): separating → return without an impulse.
+- $v_n<0$: approaching → resolve collision.
+- $v_n\ge0$: separating → return without an impulse.
 
 ### Step 4 — restitution
 
-\(e=\min(e_A,e_B)\). The code sets \(e=0\) when \(-v_n<1\) m/s to suppress tiny resting bounces.
+$e=\min(e_A,e_B)$. The code sets $e=0$ when $-v_n<1$ m/s to suppress tiny resting bounces.
 
 ### Step 5 — world inverse inertia
 
-\[
+$$
 I_A^{-1}=R_AI_{A,local}^{-1}R_A^T,\qquad I_B^{-1}=R_BI_{B,local}^{-1}R_B^T
-\]
+$$
 
 ### Step 6 — effective inverse mass
 
-\[
+$$
 \boxed{K=m_A^{-1}+m_B^{-1}+\mathbf n\cdot\left[\left(I_A^{-1}(\mathbf r_A\times\mathbf n)\right)\times\mathbf r_A+\left(I_B^{-1}(\mathbf r_B\times\mathbf n)\right)\times\mathbf r_B\right]}
-\]
+$$
 
 The first two terms represent translation. The remaining terms represent how the impulse induces **rotation** about each body's center of mass.
 
 ### Step 7 — impulse magnitude and direction
 
-\[
+$$
 \boxed{j=-\frac{(1+e)v_n}{K}},\qquad\boxed{\mathbf J=j\mathbf n}
-\]
+$$
 
 ### Step 8 — linear velocity updates
 
-\[
+$$
 \boxed{\mathbf v_A'=\mathbf v_A-m_A^{-1}\mathbf J}
-\]
+$$
 
-\[
+$$
 \boxed{\mathbf v_B'=\mathbf v_B+m_B^{-1}\mathbf J}
-\]
+$$
 
 These are equal and opposite impulses (Newton's third law).
 
 ### Step 9 — angular velocity updates
 
-\[
+$$
 \boxed{\boldsymbol\omega_A'=\boldsymbol\omega_A-I_A^{-1}(\mathbf r_A\times\mathbf J)}
-\]
+$$
 
-\[
+$$
 \boxed{\boldsymbol\omega_B'=\boldsymbol\omega_B+I_B^{-1}(\mathbf r_B\times\mathbf J)}
-\]
+$$
 
-**Example:** A cube struck off-center receives a nonzero \(\mathbf r\times\mathbf J\), so it both translates and spins. A centered hit with \(\mathbf r\parallel\mathbf J\) produces zero angular impulse.
+**Example:** A cube struck off-center receives a nonzero $\mathbf r\times\mathbf J$, so it both translates and spins. A centered hit with $\mathbf r\parallel\mathbf J$ produces zero angular impulse.
 
 **Current solver limitations:** The code solves only **normal** impulses, not tangential Coulomb friction. It does not cache accumulated impulses across steps (warm starting), nor does it explicitly enforce a nonnegative *accumulated* normal impulse across iterations.
 
@@ -775,9 +775,9 @@ These factors are applied **per step**, so their effect depends on simulation fr
 
 ### Position
 
-\[
+$$
 \boxed{\mathbf x_{new}=\mathbf x_{old}+\mathbf v_{new}\Delta t}
-\]
+$$
 
 This is the position half of a semi-implicit Euler-style update: velocity is updated before position.
 
@@ -785,21 +785,21 @@ This is the position half of a semi-implicit Euler-style update: velocity is upd
 
 Angular velocity is represented as a pure quaternion:
 
-\[
+$$
 \Omega=(0,\omega_x,\omega_y,\omega_z)
-\]
+$$
 
 With angular velocity in world space:
 
-\[
+$$
 \frac{dq}{dt}=\frac12\Omega q
-\]
+$$
 
 Explicit quaternion integration:
 
-\[
+$$
 \boxed{q_{new}=\operatorname{normalize}\left(q_{old}+\frac{\Delta t}{2}\Omega q_{old}\right)}
-\]
+$$
 
 Normalization prevents floating-point drift from breaking the unit-quaternion constraint.
 
@@ -807,16 +807,16 @@ Normalization prevents floating-point drift from breaking the unit-quaternion co
 
 ## 12. End-to-end example — a falling cube
 
-**Setup:** A cube with half-extents \((1,1,1)\), mass 2 kg, initial center at \(z=3\), and no initial velocity.
+**Setup:** A cube with half-extents $(1,1,1)$, mass 2 kg, initial center at $z=3$, and no initial velocity.
 
 1. **Collider construction:** `make_collider_parts` creates `BoxCollider { half: (1,1,1) }`.
-2. **Mass properties:** `compute_mass_properties(2)` gives \(m^{-1}=0.5\) kg⁻¹. Its diagonal inertia is \(I_{xx}=I_{yy}=I_{zz}=\frac23(1^2+1^2)=\frac43\) kg·m².
+2. **Mass properties:** `compute_mass_properties(2)` gives $m^{-1}=0.5$ kg⁻¹. Its diagonal inertia is $I_{xx}=I_{yy}=I_{zz}=\frac23(1^2+1^2)=\frac43$ kg·m².
 3. **World insertion:** `PhysicsWorld::add_body` stores it and returns `BodyId::Body(index)`.
-4. **Gravity integration:** over \(\Delta t=1/60\) s, with zero drag/force, \(\Delta v_z=-9.81/60\approx-0.1635\) m/s on the first step.
-5. **Contact detection:** while the cube's bottom remains above \(z=0\), no ground contact is generated.
-6. **Ground penetration:** once a downward support point satisfies \(p_z<0\), a ground `Contact` is added with downward normal and depth \(-p_z\).
+4. **Gravity integration:** over $\Delta t=1/60$ s, with zero drag/force, $\Delta v_z=-9.81/60\approx-0.1635$ m/s on the first step.
+5. **Contact detection:** while the cube's bottom remains above $z=0$, no ground contact is generated.
+6. **Ground penetration:** once a downward support point satisfies $p_z<0$, a ground `Contact` is added with downward normal and depth $-p_z$.
 7. **Position correction:** the cube is moved upward by a fraction of its penetration (the ground does not move).
-8. **Impulse:** the downward contact-point velocity yields \(v_n<0\), so the solver applies an upward impulse to the cube, changing its linear velocity and possibly angular velocity if the contact is off-center.
+8. **Impulse:** the downward contact-point velocity yields $v_n<0$, so the solver applies an upward impulse to the cube, changing its linear velocity and possibly angular velocity if the contact is off-center.
 9. **Position/orientation integration:** the cube advances using its corrected velocities.
 
 **Note:** This example illustrates the intended flow; actual resting stability depends on contact uniqueness, contact-point selection, timestep, and solver convergence.
