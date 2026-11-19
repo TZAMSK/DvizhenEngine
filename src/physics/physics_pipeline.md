@@ -1,4 +1,4 @@
-# Physics Engine Pipeline — `sliyan_engine`
+# Physics Engine Pipeline — `dvizhen_engine`
 
 ## 1. Architecture at a glance
 

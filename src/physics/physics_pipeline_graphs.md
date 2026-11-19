@@ -1,4 +1,4 @@
-# Physics Pipeline — Visual Graphs (`sliyan_engine`)
+# Physics Pipeline — Visual Graphs (`dvizhen_engine`)
 
 ## 1. Full pipeline — geometry to simulation
 
