@@ -1,7 +1,10 @@
 use core::panic;
 
 use crate::physics::{
-    collisions::{collide, collider_factory::ColliderPart, collision::WorldCollider, Contact},
+    collisions::{
+        collider_factory::ColliderPart, convex_collision::collide, convex_collision::Contact,
+        world_collider::WorldCollider,
+    },
     rigid_body::RigidBody,
 };
 
