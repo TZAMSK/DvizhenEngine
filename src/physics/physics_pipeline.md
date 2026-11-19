@@ -1,9 +1,5 @@
 # Physics Engine Pipeline — `sliyan_engine`
 
-A code-oriented guide to the **structs, functions, execution order, and mathematics** of the current Rust rigid-body physics implementation.
-
-> **Scope:** This describes the implementation shared in the conversation: `collider.rs`, `collider_builder.rs`, `world_collider.rs`, the GJK/EPA collision module, `rigid_body.rs`, and `physics_world.rs`. Some names retain their current spelling (`intertia`, `orentation`, `drag_coefficience`). The GJK/EPA description covers the algorithm and the previously shared implementation; it is not a proof that all edge cases are correct.
-
 ## 1. Architecture at a glance
 
 ```text
@@ -104,7 +100,12 @@ $$
 For half-extents $(h_x,h_y,h_z)$, choose the corner whose coordinates have the signs of the search direction:
 
 $$
-S(\mathbf d)=\begin{pmatrix}h_x\\mathrm{sgn}(d_x)\\h_y\\mathrm{sgn}(d_y)\\h_z\\mathrm{sgn}(d_z)\end{pmatrix}
+S(\mathbf{d}) =
+\begin{pmatrix}
+h_x \,\mathrm{sgn}(d_x) \\
+h_y \,\mathrm{sgn}(d_y) \\
+h_z \,\mathrm{sgn}(d_z)
+\end{pmatrix}
 $$
 
 In this code, a zero direction component chooses the **positive** half-extent.

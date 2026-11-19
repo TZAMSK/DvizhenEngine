@@ -1,9 +1,5 @@
 # Physics Pipeline — Visual Graphs (`sliyan_engine`)
 
-This companion to `physics_pipeline.md` visualizes the **actual code architecture**, **function calls**, **data flow**, and **mathematics** in the Rust rigid-body engine. The diagrams use [Mermaid](https://mermaid.js.org/), which renders in compatible Markdown viewers (including GitHub).
-
-> File names follow the proposed module layout (`collider_builder.rs`, `world_collider.rs`, `convex_collision.rs`); identifiers such as `orentation` and `intertia` retain their current spelling. A diagram arrow means *data flow* or *a function call*, as indicated in each section; it does not imply that every stage happens automatically.
-
 ## 1. Full pipeline — geometry to simulation
 
 ```mermaid
